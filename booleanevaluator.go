@@ -6,6 +6,7 @@ const (
 	lTrue = iota
 	lFalse
 	and
+	or
 	variable
 )
 
@@ -71,6 +72,19 @@ func (l logicalNode) Eval(params map[string]interface{}) (bool, error) {
 		}
 
 		return l.rightBool.Eval(params)
+	case or:
+		left, err := l.leftBool.Eval(params)
+		if left {
+			return true, nil
+		}
+
+		// TODO consider ignoring errors but logging them
+		// or even making it configurable
+		if err != nil {
+			return false, err
+		}
+
+		return l.rightBool.Eval(params)
 	default:
 		// TODO refactor to avoid panics, logicalNode should be robust
 		// The best is probably to make an "andNode", orNode, ...
@@ -105,13 +119,14 @@ func createBooleanAST(tokens []token) (boolNode, error) {
 		return node, nil
 	}
 
-	if tokens[1].kind == and {
+	switch tokens[1].kind {
+	case and, or:
 		rightBool, err := createBooleanAST(tokens[2:])
 		if err != nil {
 			return nil, err
 		}
 
-		return logicalNode{node, rightBool, and}, nil
+		return logicalNode{node, rightBool, tokens[1].kind}, nil
 	}
 
 	return nil, fmt.Errorf("unexpected token (%s) of kind %d", tokens[0].text, tokens[0].kind)
@@ -142,6 +157,8 @@ func tokenize(expression string) ([]token, error) {
 			tokens = append(tokens, token{lFalse, text})
 		case "and":
 			tokens = append(tokens, token{and, text})
+		case "or":
+			tokens = append(tokens, token{or, text})
 		default:
 			tokens = append(tokens, token{variable, text})
 		}
