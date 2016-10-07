@@ -26,33 +26,34 @@ func BoolEval(expression string, variables map[string]interface{}) (b bool, err 
 		return false, err
 	}
 
-	return ast.Eval(variables), nil
+	return ast.Eval(variables)
 }
 
 type boolNode interface {
-	Eval(map[string]interface{}) bool
+	Eval(map[string]interface{}) (bool, error)
 }
 
 type lBool struct {
 	value bool
 }
 
-func (l lBool) Eval(map[string]interface{}) bool {
-	return l.value
+func (l lBool) Eval(map[string]interface{}) (bool, error) {
+	return l.value, nil
 }
 
 type varNode struct {
 	varName string
 }
 
-func (n varNode) Eval(params map[string]interface{}) bool {
+func (n varNode) Eval(params map[string]interface{}) (bool, error) {
 	// TODO we need to check for the variable existing
-	v, ok := params[n.varName]
+	v, ok := params[n.varName].(bool)
 	if !ok {
-		panic(fmt.Errorf("variable %s not found", n.varName))
+		// TODO split in two variables
+		return false, fmt.Errorf("variable %s not found or not boolean", n.varName)
 	}
 
-	return v.(bool)
+	return v, nil
 }
 
 type logicalNode struct {
@@ -60,14 +61,20 @@ type logicalNode struct {
 	op                  uint
 }
 
-func (l logicalNode) Eval(params map[string]interface{}) bool {
+func (l logicalNode) Eval(params map[string]interface{}) (bool, error) {
 	// TODO avoid this switch on expression runtime, consider creating interface for EvalLogical()
 	switch l.op {
 	case and:
-		return l.leftBool.Eval(params) && l.rightBool.Eval(params)
+		left, err := l.leftBool.Eval(params)
+		if err != nil || !left {
+			return false, err
+		}
+
+		return l.rightBool.Eval(params)
 	default:
-		// TODO refactor to avoid panics, ASTs should be robust
-		panic(fmt.Errorf("unrecognised operator %d", l.op))
+		// TODO refactor to avoid panics, logicalNode should be robust
+		// The best is probably to make an "andNode", orNode, ...
+		return false, fmt.Errorf("unrecognised operator %d", l.op)
 	}
 }
 

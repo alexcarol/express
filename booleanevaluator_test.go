@@ -47,3 +47,18 @@ func TestBooleanEvalWithVariables(t *testing.T) {
 		assert.Equal(t, got, testCase.expected, "Expression: "+testCase.expression)
 	}
 }
+
+func TestBooleanEvalWithMissingVariables(t *testing.T) {
+	tests := []struct {
+		expression string
+		parameters map[string]interface{}
+	}{
+		{"potato", nil},
+		{"potato and tomato", map[string]interface{}{"potato": true}},
+	}
+	for _, testCase := range tests {
+		got, err := BoolEval(testCase.expression, testCase.parameters)
+		assert.Error(t, err)
+		assert.False(t, got, "Expression: "+testCase.expression)
+	}
+}
