@@ -1,0 +1,12 @@
+language: go
+
+go:
+  - 1.7.1
+  - tip
+
+install:
+    - make testdeps
+
+script:
+    - make linters
+    - make test

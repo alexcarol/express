@@ -16,3 +16,8 @@ lint:
 
 vet:
 	go vet ./...
+
+testdeps:
+	go get -v github.com/golang/lint/golint
+	go get -v honnef.co/go/simple/cmd/gosimple
+	go get -t -v ./...
