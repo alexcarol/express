@@ -1,22 +1,21 @@
 package express
 
-import (
-	"fmt"
-	"strings"
-)
+import "fmt"
 
 const (
 	lTrue = iota
 	lFalse
 	and
+	variable
 )
 
 type token struct {
 	kind uint
+	text string
 }
 
 // BoolEval returns the result for an expression
-func BoolEval(expression string, variables map[string]interface{}) (bool, error) {
+func BoolEval(expression string, variables map[string]interface{}) (b bool, err error) {
 	tokens, err := tokenize(expression)
 	if err != nil {
 		return false, err
@@ -40,6 +39,20 @@ type lBool struct {
 
 func (l lBool) Eval(map[string]interface{}) bool {
 	return l.value
+}
+
+type varNode struct {
+	varName string
+}
+
+func (n varNode) Eval(params map[string]interface{}) bool {
+	// TODO we need to check for the variable existing
+	v, ok := params[n.varName]
+	if !ok {
+		panic(fmt.Errorf("variable %s not found", n.varName))
+	}
+
+	return v.(bool)
 }
 
 type logicalNode struct {
@@ -71,26 +84,30 @@ func createBooleanAST(tokens []token) (boolNode, error) {
 		return nil, eoi{}
 	}
 
+	var node boolNode
 	switch tokens[0].kind {
 	case lTrue, lFalse:
-		node := lBool{tokens[0].kind == lTrue}
-		if len(tokens) == 1 {
-			return node, nil
-		}
-
-		if tokens[1].kind == and {
-
-			rightBool, err := createBooleanAST(tokens[2:])
-			if err != nil {
-				return nil, err
-			}
-
-			return logicalNode{node, rightBool, and}, nil
-		}
+		node = lBool{tokens[0].kind == lTrue}
+	case variable:
+		node = varNode{tokens[0].text}
+	default:
+		return nil, fmt.Errorf("unexpected token (%s) of kind %d", tokens[0].text, tokens[0].kind)
 	}
 
-	// TODO return type "text" instead
-	return nil, fmt.Errorf("Unexpected token of kind %d", tokens[0].kind)
+	if len(tokens) == 1 {
+		return node, nil
+	}
+
+	if tokens[1].kind == and {
+		rightBool, err := createBooleanAST(tokens[2:])
+		if err != nil {
+			return nil, err
+		}
+
+		return logicalNode{node, rightBool, and}, nil
+	}
+
+	return nil, fmt.Errorf("unexpected token (%s) of kind %d", tokens[0].text, tokens[0].kind)
 }
 
 func tokenize(expression string) ([]token, error) {
@@ -100,21 +117,36 @@ func tokenize(expression string) ([]token, error) {
 		if expression[i] == byte(' ') { // TODO add other blank spaces
 			continue
 		}
-
-		// TOOD find all the "reserved words" generically
-		if strings.HasPrefix(expression[i:], "true") {
-			i += len("true") - 1
-			tokens = append(tokens, token{lTrue})
-		} else if strings.HasPrefix(expression[i:], "false") {
-			i += len("false") - 1
-			tokens = append(tokens, token{lFalse})
-		} else if strings.HasPrefix(expression[i:], "and") {
-			i += len("and") - 1
-			tokens = append(tokens, token{and})
+		startingI := i
+		if isValidStarterIdent(expression[i]) {
+			i++
+			for i < len(expression) && canBeIdent(expression[i]) {
+				i++
+			}
 		} else {
-			return tokens, fmt.Errorf("Error parsing expression at position %d", i)
+			return nil, fmt.Errorf("error parsing expression at position %d, found %c", i, expression[i])
+		}
+
+		text := expression[startingI:i]
+		switch text {
+		case "true":
+			tokens = append(tokens, token{lTrue, text})
+		case "false":
+			tokens = append(tokens, token{lFalse, text})
+		case "and":
+			tokens = append(tokens, token{and, text})
+		default:
+			tokens = append(tokens, token{variable, text})
 		}
 	}
 
 	return tokens, nil
+}
+
+func isValidStarterIdent(b byte) bool {
+	return b >= 'a' && b <= 'z' || b >= 'A' && b <= 'z'
+}
+
+func canBeIdent(b byte) bool {
+	return isValidStarterIdent(b)
 }
