@@ -12,7 +12,9 @@ func TestBooleanEvalAllLiterals(t *testing.T) {
 		expected   bool
 	}{
 		{"true", true},
+		{"(true)", true},
 		{"false", false},
+		{"(false)", false},
 		{"true or true", true},
 		{"true or false", true},
 		{"false or true", true},
@@ -30,11 +32,13 @@ func TestBooleanEvalAllLiterals(t *testing.T) {
 		{"false and true or false", false},
 		{"false or true and true", true},
 		{"false or true and false", false},
+		{"true and (false or true) and true", true},
+		{"false and (true or false) and true", false},
 	}
 	for _, testCase := range tests {
 		got, err := BoolEval(testCase.expression, nil)
 		assert.NoError(t, err)
-		assert.Equal(t, got, testCase.expected, "Expression: "+testCase.expression)
+		assert.Equal(t, testCase.expected, got, "Expression: "+testCase.expression)
 	}
 }
 
@@ -50,11 +54,12 @@ func TestBooleanEvalWithVariables(t *testing.T) {
 		{"potato and tomato", map[string]interface{}{"potato": true, "tomato": false}, false},
 		{"true and potato and tomato", map[string]interface{}{"potato": true, "tomato": true}, true},
 		{"potato and false and tomato", map[string]interface{}{"potato": true, "tomato": true}, false},
+		{"potato and (false or tomato)", map[string]interface{}{"potato": true, "tomato": true}, true},
 	}
 	for _, testCase := range tests {
 		got, err := BoolEval(testCase.expression, testCase.parameters)
 		assert.NoError(t, err)
-		assert.Equal(t, got, testCase.expected, "Expression: "+testCase.expression)
+		assert.Equal(t, testCase.expected, got, "Expression: "+testCase.expression)
 	}
 }
 
