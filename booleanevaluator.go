@@ -101,19 +101,25 @@ func (l logicalNode) Eval(params map[string]interface{}) (bool, error) {
 	}
 }
 
+func boolNodeFromToken(t token) (boolNode, error) {
+	switch t.kind {
+	case lTrue, lFalse:
+		return lBool{t.kind == lTrue}, nil
+	case variable:
+		return varNode{t.text}, nil
+	default:
+		return nil, fmt.Errorf("unexpected token (%s) of kind %d", t.text, t.kind)
+	}
+}
+
 func createBooleanAST(tokens []token) (boolNode, error) {
 	if len(tokens) == 0 {
 		return nil, eoi{}
 	}
 
-	var left boolNode
-	switch tokens[0].kind {
-	case lTrue, lFalse:
-		left = lBool{tokens[0].kind == lTrue}
-	case variable:
-		left = varNode{tokens[0].text}
-	default:
-		return nil, fmt.Errorf("unexpected token (%s) of kind %d", tokens[0].text, tokens[0].kind)
+	left, err := boolNodeFromToken(tokens[0])
+	if err != nil {
+		return nil, err
 	}
 
 	var i = 1
@@ -131,14 +137,9 @@ func createBooleanAST(tokens []token) (boolNode, error) {
 			return nil, fmt.Errorf("unexpected end of input")
 		}
 
-		var right boolNode
-		switch tokens[i].kind {
-		case lTrue, lFalse:
-			right = lBool{tokens[i].kind == lTrue}
-		case variable:
-			right = varNode{tokens[i].text}
-		default:
-			return nil, fmt.Errorf("unexpected token (%s) of kind %d", tokens[i].text, tokens[i].kind)
+		right, err := boolNodeFromToken(tokens[i])
+		if err != nil {
+			return nil, err
 		}
 
 		i++
