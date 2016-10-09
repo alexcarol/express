@@ -1,6 +1,9 @@
 package express
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 const (
 	lTrue uint = iota
@@ -212,12 +215,17 @@ func tokenize(expression string) ([]token, error) {
 			continue
 		}
 
-		if expression[i] == '(' {
-			tokens = append(tokens, token{lParen, "("})
-			continue
-		} else if expression[i] == ')' {
-			tokens = append(tokens, token{rParen, ")"})
-			continue
+		var definedSymbols = map[string]uint{
+			"(": lParen,
+			")": rParen,
+		}
+
+		for text, kind := range definedSymbols {
+			if strings.HasPrefix(expression[i:], text) {
+				tokens = append(tokens, token{kind, text})
+				i += len(text)
+				continue
+			}
 		}
 
 		startingI := i
@@ -230,19 +238,19 @@ func tokenize(expression string) ([]token, error) {
 			return nil, fmt.Errorf("error parsing expression at position %d, found %c", i, expression[i])
 		}
 
-		text := expression[startingI:i]
-		switch text {
-		case "true":
-			tokens = append(tokens, token{lTrue, text})
-		case "false":
-			tokens = append(tokens, token{lFalse, text})
-		case "and":
-			tokens = append(tokens, token{and, text})
-		case "or":
-			tokens = append(tokens, token{or, text})
-		default:
-			tokens = append(tokens, token{variable, text})
+		var definedTokens = map[string]uint{
+			"true":  lTrue,
+			"false": lFalse,
+			"and":   and,
+			"or":    or,
 		}
+
+		text := expression[startingI:i]
+		kind, found := definedTokens[text]
+		if !found {
+			kind = variable
+		}
+		tokens = append(tokens, token{kind, text})
 	}
 
 	return tokens, nil
