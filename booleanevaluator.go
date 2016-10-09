@@ -3,7 +3,7 @@ package express
 import "fmt"
 
 const (
-	lTrue = iota
+	lTrue uint = iota
 	lFalse
 	and
 	or
@@ -16,6 +16,7 @@ type token struct {
 }
 
 // BoolEval returns the result for an expression
+// TODO think about whether variables should be a single map[string]interface{} or two separate map[string]bool and map[string]<numeric>
 func BoolEval(expression string, variables map[string]interface{}) (b bool, err error) {
 	tokens, err := tokenize(expression)
 	if err != nil {
@@ -92,44 +93,41 @@ func (l logicalNode) Eval(params map[string]interface{}) (bool, error) {
 	}
 }
 
-type eoi struct{}
-
-func (e eoi) Error() string {
-	return "End of input"
-}
-
-// bool = lTrue|lFalse|bool logicalOperator bool
-// logicalOperator = and
 func createBooleanAST(tokens []token) (boolNode, error) {
-	if len(tokens) == 0 {
-		return nil, eoi{}
+	for _, operator := range []uint{or, and} { // binary logical operators by inverse order of priority
+		for i, t := range tokens {
+			if t.kind == operator {
+				leftNode, err := createBooleanAST(tokens[:i])
+				if err != nil {
+					return nil, err
+				}
+				rightNode, err := createBooleanAST(tokens[i+1:])
+				if err != nil {
+					return nil, err
+				}
+				return logicalNode{
+					leftNode,
+					rightNode,
+					operator,
+				}, nil
+			}
+		}
 	}
 
-	var node boolNode
+	// if we reach this point we have either a variable or a literal or unary operators
+
+	if len(tokens) != 1 {
+		return nil, fmt.Errorf("expected tokens length is 1, obtained %d", len(tokens))
+	}
+
 	switch tokens[0].kind {
 	case lTrue, lFalse:
-		node = lBool{tokens[0].kind == lTrue}
+		return lBool{tokens[0].kind == lTrue}, nil
 	case variable:
-		node = varNode{tokens[0].text}
+		return varNode{tokens[0].text}, nil
 	default:
 		return nil, fmt.Errorf("unexpected token (%s) of kind %d", tokens[0].text, tokens[0].kind)
 	}
-
-	if len(tokens) == 1 {
-		return node, nil
-	}
-
-	switch tokens[1].kind {
-	case and, or:
-		rightBool, err := createBooleanAST(tokens[2:])
-		if err != nil {
-			return nil, err
-		}
-
-		return logicalNode{node, rightBool, tokens[1].kind}, nil
-	}
-
-	return nil, fmt.Errorf("unexpected token (%s) of kind %d", tokens[0].text, tokens[0].kind)
 }
 
 func tokenize(expression string) ([]token, error) {

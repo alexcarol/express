@@ -26,6 +26,10 @@ func TestBooleanEvalAllLiterals(t *testing.T) {
 		{"false and true", false},
 		{"false and false", false},
 		{"false and false and true and true", false},
+		{"false and true or true", true},
+		{"false and true or false", false},
+		{"false or true and true", true},
+		{"false or true and false", false},
 	}
 	for _, testCase := range tests {
 		got, err := BoolEval(testCase.expression, nil)
