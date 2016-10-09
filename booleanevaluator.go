@@ -10,6 +10,12 @@ const (
 	variable
 )
 
+type eoi struct{}
+
+func (e eoi) Error() string {
+	return "End of input"
+}
+
 type token struct {
 	kind uint
 	text string
@@ -25,7 +31,9 @@ func BoolEval(expression string, variables map[string]interface{}) (b bool, err 
 
 	ast, err := createBooleanAST(tokens)
 	if err != nil {
-		return false, err
+		if _, ok := err.(eoi); !ok {
+			return false, err
+		}
 	}
 
 	return ast.Eval(variables)
@@ -94,40 +102,73 @@ func (l logicalNode) Eval(params map[string]interface{}) (bool, error) {
 }
 
 func createBooleanAST(tokens []token) (boolNode, error) {
-	for _, operator := range []uint{or, and} { // binary logical operators by inverse order of priority
-		for i, t := range tokens {
-			if t.kind == operator {
-				leftNode, err := createBooleanAST(tokens[:i])
-				if err != nil {
-					return nil, err
-				}
-				rightNode, err := createBooleanAST(tokens[i+1:])
-				if err != nil {
-					return nil, err
-				}
-				return logicalNode{
-					leftNode,
-					rightNode,
-					operator,
-				}, nil
-			}
-		}
+	if len(tokens) == 0 {
+		return nil, eoi{}
 	}
 
-	// if we reach this point we have either a variable or a literal or unary operators
-
-	if len(tokens) != 1 {
-		return nil, fmt.Errorf("expected tokens length is 1, obtained %d", len(tokens))
-	}
-
+	var left boolNode
 	switch tokens[0].kind {
 	case lTrue, lFalse:
-		return lBool{tokens[0].kind == lTrue}, nil
+		left = lBool{tokens[0].kind == lTrue}
 	case variable:
-		return varNode{tokens[0].text}, nil
+		left = varNode{tokens[0].text}
 	default:
 		return nil, fmt.Errorf("unexpected token (%s) of kind %d", tokens[0].text, tokens[0].kind)
 	}
+
+	var i = 1
+
+	for i < len(tokens) {
+		var kind = tokens[i].kind
+
+		if !isOperator(kind) {
+			return nil, fmt.Errorf("unexpected token (%s) of kind %d", tokens[i].text, tokens[i].kind)
+		}
+
+		i++
+
+		if i == len(tokens) {
+			return nil, fmt.Errorf("unexpected end of input")
+		}
+
+		var right boolNode
+		switch tokens[i].kind {
+		case lTrue, lFalse:
+			right = lBool{tokens[i].kind == lTrue}
+		case variable:
+			right = varNode{tokens[i].text}
+		default:
+			return nil, fmt.Errorf("unexpected token (%s) of kind %d", tokens[i].text, tokens[i].kind)
+		}
+
+		i++
+
+		if i == len(tokens) {
+			return logicalNode{left, right, kind}, nil
+		}
+
+		if !isOperator(tokens[i].kind) {
+			return nil, fmt.Errorf("unexpected token (%s) of kind %d", tokens[i].text, tokens[i].kind)
+		}
+
+		if tokens[i].kind > kind {
+			left = logicalNode{left, right, kind}
+		} else {
+			rightMost, err := createBooleanAST(tokens[i+1:])
+
+			return logicalNode{
+				left,
+				logicalNode{
+					right,
+					rightMost,
+					tokens[i].kind,
+				},
+				kind,
+			}, err
+		}
+	}
+
+	return left, nil
 }
 
 func tokenize(expression string) ([]token, error) {
@@ -163,6 +204,10 @@ func tokenize(expression string) ([]token, error) {
 	}
 
 	return tokens, nil
+}
+
+func isOperator(kind uint) bool {
+	return kind == and || kind == or
 }
 
 func isValidStarterIdent(b byte) bool {
