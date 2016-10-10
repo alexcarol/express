@@ -121,41 +121,35 @@ func (l logicalNode) Eval(params map[string]interface{}) (bool, error) {
 	}
 }
 
-func boolNodeFromToken(tokens []token, position int) (boolNode, error) {
+func boolNodeStartingAt(tokens []token, position int) (boolNode, int, error) {
 	if len(tokens) <= position {
-		return nil, eoi{}
+		return nil, position, eoi{}
 	}
 	t := tokens[position]
 	switch t.kind {
 	case lTrue, lFalse:
-		return lBool{t.kind == lTrue}, nil
+		return lBool{t.kind == lTrue}, position + 1, nil
 	case variable:
-		return varNode{t.text}, nil
+		return varNode{t.text}, position + 1, nil
+	case lParen:
+		node, err := createBooleanAST(tokens[position+1:])
+
+		utErr, ok := err.(unexpectedToken)
+		if ok && utErr.t.kind == rParen {
+			return node, utErr.position + 1, nil
+		}
+
+		return node, position, err
 	default:
-		return nil, unexpectedToken{t, position}
+		return nil, position, unexpectedToken{t, position}
 	}
 }
 
 func createBooleaASTWithLeftSideAndOperator(left boolNode, operator uint, tokens []token) (boolNode, error) {
-	var i = 0
-	right, err := boolNodeFromToken(tokens, i)
+	right, i, err := boolNodeStartingAt(tokens, 0)
 	if err != nil {
-		utErr, ok := err.(unexpectedToken)
-		if !ok || utErr.t.kind != lParen {
-			return left, fmt.Errorf("unexpected: %v", err)
-		}
-
-		right, err = createBooleanAST(tokens[i+1:])
-
-		utErr, ok = err.(unexpectedToken)
-		if !ok || utErr.t.kind != rParen {
-			return left, err
-		}
-
-		i += utErr.position
+		return logicalNode{left, right, operator}, err
 	}
-
-	i++
 
 	if i >= len(tokens) {
 		return logicalNode{left, right, operator}, eoi{}
@@ -183,23 +177,9 @@ func createBooleaASTWithLeftSideAndOperator(left boolNode, operator uint, tokens
 }
 
 func createBooleanAST(tokens []token) (boolNode, error) {
-	var i = 1
-
-	left, err := boolNodeFromToken(tokens, 0)
+	left, i, err := boolNodeStartingAt(tokens, 0)
 	if err != nil {
-		utErr, ok := err.(unexpectedToken)
-		if !ok || utErr.t.kind != lParen {
-			return left, err
-		}
-
-		left, err = createBooleanAST(tokens[1:])
-
-		utErr, ok = err.(unexpectedToken)
-		if !ok || utErr.t.kind != rParen {
-			return left, err
-		}
-
-		i = utErr.position + 1
+		return left, err
 	}
 
 	if i >= len(tokens) {
