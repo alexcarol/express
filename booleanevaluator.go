@@ -1,6 +1,7 @@
 package express
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 )
@@ -27,7 +28,7 @@ func (e unexpectedToken) Error() string {
 type eoi struct{}
 
 func (e eoi) Error() string {
-	return "End of input"
+	return "end of input"
 }
 
 type token struct {
@@ -45,9 +46,13 @@ func BoolEval(expression string, variables map[string]interface{}) (b bool, err 
 
 	ast, err := createBooleanAST(tokens)
 	if err != nil {
-		if _, ok := err.(eoi); !ok {
+		if _, ok := err.(eoi); !ok { // TODO this error probably shouldn't get so far
 			return false, err
 		}
+	}
+
+	if ast == nil {
+		return false, errors.New("unexpected nil ast")
 	}
 
 	return ast.Eval(variables)
@@ -131,6 +136,52 @@ func boolNodeFromToken(tokens []token, position int) (boolNode, error) {
 	}
 }
 
+func createBooleaASTWithLeftSideAndOperator(left boolNode, operator uint, tokens []token) (boolNode, error) {
+	var i = 0
+	right, err := boolNodeFromToken(tokens, i)
+	if err != nil {
+		utErr, ok := err.(unexpectedToken)
+		if !ok || utErr.t.kind != lParen {
+			return left, fmt.Errorf("unexpected: %v", err)
+		}
+
+		right, err = createBooleanAST(tokens[i+1:])
+
+		utErr, ok = err.(unexpectedToken)
+		if !ok || utErr.t.kind != rParen {
+			return left, err
+		}
+
+		i += utErr.position
+	}
+
+	i++
+
+	if i >= len(tokens) {
+		return logicalNode{left, right, operator}, eoi{}
+	}
+
+	if !isOperator(tokens[i].kind) {
+		return nil, unexpectedToken{tokens[i], i}
+	}
+
+	if tokens[i].kind > operator {
+		return createBooleaASTWithLeftSideAndOperator(logicalNode{left, right, operator}, tokens[i].kind, tokens[i+1:])
+	}
+
+	rightMost, err := createBooleanAST(tokens[i+1:])
+
+	return logicalNode{
+		left,
+		logicalNode{
+			right,
+			rightMost,
+			tokens[i].kind,
+		},
+		operator,
+	}, err
+}
+
 func createBooleanAST(tokens []token) (boolNode, error) {
 	var i = 1
 
@@ -151,60 +202,16 @@ func createBooleanAST(tokens []token) (boolNode, error) {
 		i = utErr.position + 1
 	}
 
-	for i < len(tokens) {
-		var kind = tokens[i].kind
-
-		if !isOperator(kind) {
-			return nil, unexpectedToken{tokens[i], i}
-		}
-
-		i++
-
-		right, err := boolNodeFromToken(tokens, i)
-		if err != nil {
-			utErr, ok := err.(unexpectedToken)
-			if !ok || utErr.t.kind != lParen {
-				return left, fmt.Errorf("unexpected: %v", err)
-			}
-
-			right, err = createBooleanAST(tokens[i+1:])
-
-			utErr, ok = err.(unexpectedToken)
-			if !ok || utErr.t.kind != rParen {
-				return left, err
-			}
-
-			i += utErr.position
-		}
-
-		i++
-
-		if i == len(tokens) {
-			return logicalNode{left, right, kind}, nil
-		}
-
-		if !isOperator(tokens[i].kind) {
-			return nil, unexpectedToken{tokens[i], i}
-		}
-
-		if tokens[i].kind > kind {
-			left = logicalNode{left, right, kind}
-		} else {
-			rightMost, err := createBooleanAST(tokens[i+1:])
-
-			return logicalNode{
-				left,
-				logicalNode{
-					right,
-					rightMost,
-					tokens[i].kind,
-				},
-				kind,
-			}, err
-		}
+	if i >= len(tokens) {
+		return left, eoi{}
 	}
 
-	return left, nil
+	if !isOperator(tokens[i].kind) {
+		// TODO see if it makes sense to pass the position, as it is relative
+		return left, unexpectedToken{tokens[i], i}
+	}
+
+	return createBooleaASTWithLeftSideAndOperator(left, tokens[i].kind, tokens[i+1:])
 }
 
 func tokenize(expression string) ([]token, error) {

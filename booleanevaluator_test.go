@@ -50,8 +50,9 @@ func TestBooleanEvalAllLiterals(t *testing.T) {
 	}
 	for _, testCase := range tests {
 		got, err := BoolEval(testCase.expression, nil)
-		assert.NoError(t, err)
-		assert.Equal(t, testCase.expected, got, "Expression: "+testCase.expression)
+		e := "Expression: " + testCase.expression
+		assert.NoError(t, err, e)
+		assert.Equal(t, testCase.expected, got, e)
 	}
 }
 
