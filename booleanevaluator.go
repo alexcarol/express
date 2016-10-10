@@ -187,7 +187,6 @@ func createBooleanAST(tokens []token) (boolNode, error) {
 	}
 
 	if !isOperator(tokens[i].kind) {
-		// TODO see if it makes sense to pass the position, as it is relative
 		return left, unexpectedToken{tokens[i], i}
 	}
 
