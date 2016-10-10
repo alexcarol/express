@@ -9,6 +9,7 @@ import (
 const (
 	lTrue uint = iota
 	lFalse
+	not
 	and
 	or
 	variable
@@ -121,6 +122,19 @@ func (l logicalNode) Eval(params map[string]interface{}) (bool, error) {
 	}
 }
 
+type notNode struct {
+	node boolNode
+}
+
+func (n notNode) Eval(parameters map[string]interface{}) (bool, error) {
+	res, err := n.node.Eval(parameters)
+	if err != nil {
+		return false, err
+	}
+
+	return !res, nil
+}
+
 func boolNodeStartingAt(tokens []token, position int) (boolNode, int, error) {
 	if len(tokens) <= position {
 		return nil, position, eoi{}
@@ -131,6 +145,10 @@ func boolNodeStartingAt(tokens []token, position int) (boolNode, int, error) {
 		return lBool{t.kind == lTrue}, position + 1, nil
 	case variable:
 		return varNode{t.text}, position + 1, nil
+	case not:
+		node, returnPosition, err := boolNodeStartingAt(tokens, position+1)
+
+		return notNode{node}, returnPosition, err
 	case lParen:
 		node, err := createBooleanAST(tokens[position+1:])
 
@@ -229,6 +247,7 @@ MainLoop:
 		}
 
 		var definedTokens = map[string]uint{
+			"not":   not,
 			"true":  lTrue,
 			"false": lFalse,
 			"and":   and,
