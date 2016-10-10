@@ -6,6 +6,19 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestBooleanEvalWithExpectedErrors(t *testing.T) {
+	tests := []struct {
+		expression string
+	}{
+		{"()"},
+	}
+	for _, testCase := range tests {
+		got, err := BoolEval(testCase.expression, nil)
+		assert.Error(t, err)
+		assert.False(t, got, "Expression: "+testCase.expression)
+	}
+}
+
 func TestBooleanEvalAllLiterals(t *testing.T) {
 	tests := []struct {
 		expression string

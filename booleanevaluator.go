@@ -210,8 +210,12 @@ func createBooleanAST(tokens []token) (boolNode, error) {
 func tokenize(expression string) ([]token, error) {
 	var tokens []token
 
-	for i := 0; i < len(expression); i++ {
+	var i = 0
+
+MainLoop:
+	for i < len(expression) {
 		if expression[i] == byte(' ') { // TODO add other blank spaces
+			i++
 			continue
 		}
 
@@ -224,7 +228,7 @@ func tokenize(expression string) ([]token, error) {
 			if strings.HasPrefix(expression[i:], text) {
 				tokens = append(tokens, token{kind, text})
 				i += len(text)
-				continue
+				continue MainLoop
 			}
 		}
 
@@ -251,6 +255,7 @@ func tokenize(expression string) ([]token, error) {
 			kind = variable
 		}
 		tokens = append(tokens, token{kind, text})
+		i++
 	}
 
 	return tokens, nil
