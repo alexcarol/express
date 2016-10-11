@@ -37,8 +37,7 @@ type token struct {
 	text string
 }
 
-// BoolEval returns the result for an expression
-// TODO think about whether variables should be a single map[string]interface{} or two separate map[string]bool and map[string]<numeric>
+// BoolEval returns the result for an expression with provided variables
 func BoolEval(expression string, variables map[string]interface{}) (b bool, err error) {
 	tokens, err := tokenize(expression)
 	if err != nil {
