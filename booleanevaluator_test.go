@@ -1,8 +1,9 @@
-package express
+package express_test
 
 import (
 	"testing"
 
+	"github.com/alexcarol/express"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -13,7 +14,7 @@ func TestBooleanEvalWithExpectedErrors(t *testing.T) {
 		{"()"},
 	}
 	for _, testCase := range tests {
-		got, err := BoolEval(testCase.expression, nil)
+		got, err := express.BoolEval(testCase.expression, nil)
 		assert.Error(t, err)
 		assert.False(t, got, "Expression: "+testCase.expression)
 	}
@@ -55,7 +56,7 @@ func TestBooleanEvalAllLiterals(t *testing.T) {
 		{"not true or not true or false", false},
 	}
 	for _, testCase := range tests {
-		got, err := BoolEval(testCase.expression, nil)
+		got, err := express.BoolEval(testCase.expression, nil)
 		e := "Expression: " + testCase.expression
 		assert.NoError(t, err, e)
 		assert.Equal(t, testCase.expected, got, e)
@@ -77,7 +78,7 @@ func TestBooleanEvalWithVariables(t *testing.T) {
 		{"potato and (false or tomato)", map[string]interface{}{"potato": true, "tomato": true}, true},
 	}
 	for _, testCase := range tests {
-		got, err := BoolEval(testCase.expression, testCase.parameters)
+		got, err := express.BoolEval(testCase.expression, testCase.parameters)
 		assert.NoError(t, err)
 		assert.Equal(t, testCase.expected, got, "Expression: "+testCase.expression)
 	}
@@ -92,7 +93,7 @@ func TestBooleanEvalWithMissingVariables(t *testing.T) {
 		{"potato and tomato", map[string]interface{}{"potato": true}},
 	}
 	for _, testCase := range tests {
-		got, err := BoolEval(testCase.expression, testCase.parameters)
+		got, err := express.BoolEval(testCase.expression, testCase.parameters)
 		assert.Error(t, err)
 		assert.False(t, got, "Expression: "+testCase.expression)
 	}
