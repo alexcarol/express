@@ -8,6 +8,7 @@ import (
 const (
 	lTrue uint = iota
 	lFalse
+	lNumber
 	not
 	and
 	or
@@ -47,6 +48,17 @@ MainLoop:
 		}
 
 		startingI := i
+		if isNumeric(expression[i]) {
+			i++
+			for i < len(expression) && isNumeric(expression[i]) {
+				i++
+			}
+			text := expression[startingI:i]
+			tokens = append(tokens, token{lNumber, text})
+
+			continue
+		}
+
 		if isValidStarterIdent(expression[i]) {
 			i++
 			for i < len(expression) && canBeIdent(expression[i]) {
@@ -74,6 +86,10 @@ MainLoop:
 	}
 
 	return tokens, nil
+}
+
+func isNumeric(b byte) bool {
+	return b >= '0' && b <= '9'
 }
 
 func isValidStarterIdent(b byte) bool {
