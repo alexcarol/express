@@ -50,9 +50,19 @@ MainLoop:
 		startingI := i
 		if isNumeric(expression[i]) {
 			i++
+			// integer part
 			for i < len(expression) && isNumeric(expression[i]) {
 				i++
 			}
+
+			if i < len(expression) && expression[i] == '.' {
+				i++
+				// decimal part
+				for i < len(expression) && isNumeric(expression[i]) {
+					i++
+				}
+			}
+
 			text := expression[startingI:i]
 			tokens = append(tokens, token{lNumber, text})
 
