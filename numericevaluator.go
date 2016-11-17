@@ -38,11 +38,11 @@ func (n lNumeric) Eval(map[string]float64) (float64, error) {
 	return n.value, nil
 }
 
-type plusNode struct {
+type additionNode struct {
 	leftNum, rightNum numericNode
 }
 
-func (n plusNode) Eval(variables map[string]float64) (float64, error) {
+func (n additionNode) Eval(variables map[string]float64) (float64, error) {
 	leftNum, err := n.leftNum.Eval(variables)
 	if err != nil {
 		return 0, err
@@ -54,6 +54,24 @@ func (n plusNode) Eval(variables map[string]float64) (float64, error) {
 	}
 
 	return leftNum + rightNum, nil
+}
+
+type subtractionNode struct {
+	leftNum, rightNum numericNode
+}
+
+func (n subtractionNode) Eval(variables map[string]float64) (float64, error) {
+	leftNum, err := n.leftNum.Eval(variables)
+	if err != nil {
+		return 0, err
+	}
+
+	rightNum, err := n.rightNum.Eval(variables)
+	if err != nil {
+		return 0, err
+	}
+
+	return leftNum - rightNum, nil
 }
 
 func createNumericAST(tokens []token, position int) (numericNode, error) {
@@ -79,7 +97,11 @@ func createNumericAST(tokens []token, position int) (numericNode, error) {
 		case plus:
 			rightNode, err := createNumericAST(tokens, position+1)
 
-			return plusNode{leftNode, rightNode}, err
+			return additionNode{leftNode, rightNode}, err
+		case minus:
+			rightNode, err := createNumericAST(tokens, position+1)
+
+			return subtractionNode{leftNode, rightNode}, err
 		default:
 			return leftNode, unexpectedToken{tokens[position], position, "numeric operator"}
 		}

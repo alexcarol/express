@@ -13,6 +13,7 @@ const (
 	and
 	or
 	plus
+	minus
 	variable
 	lParen
 	rParen
@@ -39,6 +40,7 @@ MainLoop:
 			"(": lParen,
 			")": rParen,
 			"+": plus,
+			"-": minus,
 		}
 
 		for text, kind := range definedSymbols {
