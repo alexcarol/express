@@ -8,10 +8,15 @@ import (
 type unexpectedToken struct {
 	t        token
 	position int
+	expected string
 }
 
 func (e unexpectedToken) Error() string {
-	return fmt.Sprintf("unexpected token (%s) of kind %d at position %d", e.t.text, e.t.kind, e.position)
+	message := fmt.Sprintf("unexpected token (%s) of kind %d at position %d", e.t.text, e.t.kind, e.position)
+	if e.expected != "" {
+		message += " expected " + e.expected
+	}
+	return message
 }
 
 type eoi struct{}
@@ -141,7 +146,7 @@ func boolNodeStartingAt(tokens []token, position int) (boolNode, int, error) {
 
 		return node, position, err
 	default:
-		return nil, position, unexpectedToken{t, position}
+		return nil, position, unexpectedToken{t, position, ""}
 	}
 }
 
@@ -156,7 +161,7 @@ func createBooleaASTWithLeftSideAndOperator(left boolNode, operator uint, tokens
 	}
 
 	if !isOperator(tokens[i].kind) {
-		return nil, unexpectedToken{tokens[i], i}
+		return nil, unexpectedToken{tokens[i], i, "boolean operator"}
 	}
 
 	if tokens[i].kind > operator {
@@ -187,7 +192,7 @@ func createBooleanAST(tokens []token) (boolNode, error) {
 	}
 
 	if !isOperator(tokens[i].kind) {
-		return left, unexpectedToken{tokens[i], i}
+		return left, unexpectedToken{tokens[i], i, "boolean operator"}
 	}
 
 	return createBooleaASTWithLeftSideAndOperator(left, tokens[i].kind, tokens[i+1:])

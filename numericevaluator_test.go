@@ -14,10 +14,14 @@ func TestNumericExpressionAllLiterals(t *testing.T) {
 	}{
 		{"5", 5},
 		{"55", 55},
+		{"(55)", 55},
 		{"((55))", 55},
 		{"5.3", 5.3},
 		{"10.1234", 10.1234},
 		{"0.1234", 0.1234},
+		{"10 + 2", 12},
+		{"1983.2 + 2.2", 1985.4},
+		{"1983.4 + 2.2", 1985.6000000000001}, // consider using math/big.Float after benchmarking, not sure if this is acceptable
 	}
 	for _, testCase := range tests {
 		got, err := express.NumericEval(testCase.expression, nil)

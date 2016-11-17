@@ -12,7 +12,7 @@ func NumericEval(expression string, variables map[string]float64) (float64, erro
 		return 0, err
 	}
 
-	ast, err := createNumericAST(tokens)
+	ast, err := createNumericAST(tokens, 0)
 	if err != nil {
 		if _, ok := err.(eoi); !ok {
 			return 0, err
@@ -38,32 +38,62 @@ func (n lNumeric) Eval(map[string]float64) (float64, error) {
 	return n.value, nil
 }
 
-func createNumericAST(tokens []token) (numericNode, error) {
-	node, _, err := numericNodeStartingAt(tokens, 0)
-
-	return node, err
+type plusNode struct {
+	leftNum, rightNum numericNode
 }
 
-func numericNodeStartingAt(tokens []token, position int) (numericNode, int, error) {
+func (n plusNode) Eval(variables map[string]float64) (float64, error) {
+	leftNum, err := n.leftNum.Eval(variables)
+	if err != nil {
+		return 0, err
+	}
+
+	rightNum, err := n.rightNum.Eval(variables)
+	if err != nil {
+		return 0, err
+	}
+
+	return leftNum + rightNum, nil
+}
+
+func createNumericAST(tokens []token, position int) (numericNode, error) {
 	if len(tokens) <= position {
-		return nil, position, eoi{}
+		return nil, eoi{}
 	}
 	t := tokens[position]
 	switch t.kind {
 	case lNumber:
 		value, err := strconv.ParseFloat(t.text, 64)
+		if err != nil {
+			return nil, err
+		}
+		position++
 
-		return lNumeric{value}, position + 1, err
+		leftNode := lNumeric{value}
+
+		if len(tokens) <= position {
+			return leftNode, nil
+		}
+
+		switch tokens[position].kind {
+		case plus:
+			rightNode, err := createNumericAST(tokens, position+1)
+
+			return plusNode{leftNode, rightNode}, err
+		default:
+			return leftNode, unexpectedToken{tokens[position], position, "numeric operator"}
+		}
+
 	case lParen:
-		node, err := createNumericAST(tokens[position+1:])
+		node, err := createNumericAST(tokens, position+1)
 
 		utErr, ok := err.(unexpectedToken)
 		if ok && utErr.t.kind == rParen {
-			return node, utErr.position + 1, nil
+			return node, nil
 		}
 
-		return node, position, err
+		return node, err
 	default:
-		return nil, position, unexpectedToken{t, position}
+		return nil, unexpectedToken{t, position, ""}
 	}
 }

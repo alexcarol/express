@@ -12,6 +12,7 @@ const (
 	not
 	and
 	or
+	plus
 	variable
 	lParen
 	rParen
@@ -37,6 +38,7 @@ MainLoop:
 		var definedSymbols = map[string]uint{
 			"(": lParen,
 			")": rParen,
+			"+": plus,
 		}
 
 		for text, kind := range definedSymbols {
