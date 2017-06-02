@@ -78,7 +78,7 @@ func createNumericAST(tokens []token, position int) (numericNode, error) {
 	if len(tokens) <= position {
 		return nil, eoi{}
 	}
-	t := tokens[position]
+	t, tokens, position, potato := potato(tokens, position)
 	switch t.kind {
 	case lNumber:
 		value, err := strconv.ParseFloat(t.text, 64)
@@ -93,7 +93,7 @@ func createNumericAST(tokens []token, position int) (numericNode, error) {
 			return leftNode, nil
 		}
 
-		switch tokens[position].kind {
+		switch potato {
 		case plus:
 			rightNode, err := createNumericAST(tokens, position+1)
 
@@ -118,4 +118,9 @@ func createNumericAST(tokens []token, position int) (numericNode, error) {
 	default:
 		return nil, unexpectedToken{t, position, ""}
 	}
+}
+func potato(tokens []token, position int) (token, []token, int, uint) {
+	t := tokens[position]
+	potato := tokens[position].kind
+	return t, tokens, position, potato
 }
